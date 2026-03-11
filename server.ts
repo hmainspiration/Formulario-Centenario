@@ -1,32 +1,11 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
-import Database from 'better-sqlite3';
+import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 
-const db = new Database('orders.db');
-
-// Initialize DB
-db.exec(`
-  CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    customer_name TEXT NOT NULL,
-    church TEXT NOT NULL,
-    total_amount REAL NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS order_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER,
-    product_type TEXT NOT NULL,
-    design TEXT NOT NULL,
-    size TEXT,
-    quantity INTEGER NOT NULL,
-    unit_price REAL NOT NULL,
-    subtotal REAL NOT NULL,
-    FOREIGN KEY(order_id) REFERENCES orders(id)
-  );
-`);
+const supabaseUrl = 'https://gciwhtxjwqwblnhwlgtb.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjaXdodHhqd3F3YmxuaHdsZ3RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwMjY1MjIsImV4cCI6MjA3NTYwMjUyMn0.d8EI8ArxmYiiZQKsvXVT9g-VzZcyyAYXciSoDPiIbN4';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function startServer() {
   const app = express();
@@ -44,65 +23,116 @@ async function startServer() {
     }
   });
 
-  app.post('/api/orders', (req, res) => {
+  app.post('/api/orders', async (req, res) => {
     const { customer_name, church, items, total_amount } = req.body;
     
     if (!customer_name || !church || !items || items.length === 0) {
       return res.status(400).json({ error: 'Faltan datos requeridos' });
     }
 
-    const insertOrder = db.prepare('INSERT INTO orders (customer_name, church, total_amount) VALUES (?, ?, ?)');
-    const insertItem = db.prepare('INSERT INTO order_items (order_id, product_type, design, size, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)');
-
-    const transaction = db.transaction(() => {
-      const info = insertOrder.run(customer_name, church, total_amount);
-      const orderId = info.lastInsertRowid;
-
-      for (const item of items) {
-        insertItem.run(orderId, item.product_type, item.design, item.size || null, item.quantity, item.unit_price, item.subtotal);
-      }
-      return orderId;
-    });
-
     try {
-      const orderId = transaction();
+      // Insert Order
+      const { data: order, error: orderError } = await supabase
+        .from('centenario_orders')
+        .insert([{ customer_name, church, total_amount }])
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      const orderId = order.id;
+
+      // Prepare items
+      const itemsToInsert = items.map((item: any) => ({
+        order_id: orderId,
+        product_type: item.product_type,
+        design: item.design,
+        size: item.size || null,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        subtotal: item.subtotal
+      }));
+
+      // Insert Items
+      const { error: itemsError } = await supabase
+        .from('centenario_order_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+
       res.json({ success: true, orderId });
     } catch (error) {
-      console.error(error);
+      console.error('Error saving order:', error);
       res.status(500).json({ error: 'Error al guardar el pedido' });
     }
   });
 
-  app.get('/api/orders', (req, res) => {
+  app.get('/api/orders', async (req, res) => {
     const authHeader = req.headers.authorization;
     if (authHeader !== 'Bearer admin-token-123') {
       return res.status(401).json({ error: 'No autorizado' });
     }
 
-    const orders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all();
-    const items = db.prepare('SELECT * FROM order_items').all();
+    try {
+      const { data: orders, error } = await supabase
+        .from('centenario_orders')
+        .select(`
+          *,
+          items:centenario_order_items(*)
+        `)
+        .order('created_at', { ascending: false });
 
-    const ordersWithItems = orders.map((order: any) => ({
-      ...order,
-      items: items.filter((item: any) => item.order_id === order.id)
-    }));
+      if (error) throw error;
 
-    res.json(ordersWithItems);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      res.status(500).json({ error: 'Error al obtener los pedidos' });
+    }
   });
 
-  app.get('/api/reports', (req, res) => {
+  app.get('/api/reports', async (req, res) => {
     const authHeader = req.headers.authorization;
     if (authHeader !== 'Bearer admin-token-123') {
       return res.status(401).json({ error: 'No autorizado' });
     }
 
-    const totalRevenue = db.prepare('SELECT SUM(total_amount) as total FROM orders').get() as {total: number};
-    const itemsSummary = db.prepare('SELECT product_type, size, SUM(quantity) as total_qty FROM order_items GROUP BY product_type, size').all();
-    
-    res.json({
-      totalRevenue: totalRevenue?.total || 0,
-      itemsSummary
-    });
+    try {
+      // Get total revenue
+      const { data: orders, error: ordersError } = await supabase
+        .from('centenario_orders')
+        .select('total_amount');
+
+      if (ordersError) throw ordersError;
+
+      const totalRevenue = orders?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+
+      // Get items summary
+      const { data: items, error: itemsError } = await supabase
+        .from('centenario_order_items')
+        .select('product_type, size, quantity');
+
+      if (itemsError) throw itemsError;
+
+      const summaryMap = new Map();
+      items?.forEach(item => {
+        const key = `${item.product_type}|${item.size || ''}`;
+        if (!summaryMap.has(key)) {
+          summaryMap.set(key, { product_type: item.product_type, size: item.size, total_qty: 0 });
+        }
+        summaryMap.get(key).total_qty += item.quantity;
+      });
+
+      const itemsSummary = Array.from(summaryMap.values());
+
+      res.json({
+        totalRevenue,
+        itemsSummary
+      });
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      res.status(500).json({ error: 'Error al obtener los reportes' });
+    }
   });
 
   // Vite middleware
