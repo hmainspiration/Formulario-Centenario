@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Order } from '../types';
 import { LogOut, RefreshCw, Download, FileText, BarChart3, Package } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface AdminPanelProps {
   token: string;
@@ -16,17 +17,44 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [ordersRes, reportsRes] = await Promise.all([
-        fetch('/api/orders', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/reports', { headers: { Authorization: `Bearer ${token}` } })
-      ]);
+      // Fetch orders
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('centenario_orders')
+        .select(`
+          *,
+          items:centenario_order_items(*)
+        `)
+        .order('created_at', { ascending: false });
 
-      if (ordersRes.ok && reportsRes.ok) {
-        setOrders(await ordersRes.json());
-        setReports(await reportsRes.json());
-      } else {
-        if (ordersRes.status === 401) onLogout();
-      }
+      if (ordersError) throw ordersError;
+      setOrders(ordersData || []);
+
+      // Fetch reports summary
+      const { data: allOrders, error: revError } = await supabase
+        .from('centenario_orders')
+        .select('total_amount');
+      
+      if (revError) throw revError;
+      const totalRevenue = allOrders?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+
+      const { data: allItems, error: itemsError } = await supabase
+        .from('centenario_order_items')
+        .select('product_type, size, quantity');
+      
+      if (itemsError) throw itemsError;
+
+      const summaryMap = new Map();
+      allItems?.forEach(item => {
+        const key = `${item.product_type}|${item.size || ''}`;
+        if (!summaryMap.has(key)) {
+          summaryMap.set(key, { product_type: item.product_type, size: item.size, total_qty: 0 });
+        }
+        summaryMap.get(key).total_qty += item.quantity;
+      });
+
+      const itemsSummary = Array.from(summaryMap.values());
+      
+      setReports({ totalRevenue, itemsSummary });
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {

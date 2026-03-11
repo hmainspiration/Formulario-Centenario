@@ -15,24 +15,16 @@ export default function Login({ onLogin }: LoginProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
+    // Simulate network delay for better UX
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-      if (data.success) {
-        onLogin(data.token);
-      } else {
-        setError(data.message || 'Error de autenticación');
-      }
-    } catch (err) {
-      setError('Error de conexión');
-    } finally {
-      setLoading(false);
+    if (password === 'centenario2026') {
+      onLogin('admin-token-123');
+    } else {
+      setError('Contraseña incorrecta');
     }
+    
+    setLoading(false);
   };
 
   return (
