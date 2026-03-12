@@ -81,8 +81,8 @@ export default function OrderForm({ onSave }: OrderFormProps) {
       setChurch('');
       setItems([]);
       alert('Pedido guardado exitosamente.');
-    } catch (error) {
-      alert('Error al guardar el pedido.');
+    } catch (error: any) {
+      alert(`Error al guardar el pedido: ${error.message || 'Error desconocido'}`);
     } finally {
       setIsSaving(false);
     }

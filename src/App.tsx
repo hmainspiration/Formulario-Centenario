@@ -16,34 +16,45 @@ export default function App() {
   const [adminToken, setAdminToken] = useState<string | null>(null);
 
   const handleSaveOrder = async (customerName: string, church: string, items: OrderItem[], totalAmount: number) => {
-    // Insert Order
-    const { data: order, error: orderError } = await supabase
-      .from('centenario_orders')
-      .insert([{ customer_name: customerName, church, total_amount: totalAmount }])
-      .select()
-      .single();
+    try {
+      // Insert Order
+      const { data: order, error: orderError } = await supabase
+        .from('centenario_orders')
+        .insert([{ customer_name: customerName, church, total_amount: totalAmount }])
+        .select()
+        .single();
 
-    if (orderError) throw orderError;
+      if (orderError) {
+        console.error("Supabase Order Error:", orderError);
+        throw new Error(orderError.message || 'Error al guardar la orden principal');
+      }
 
-    const orderId = order.id;
+      const orderId = order.id;
 
-    // Prepare items
-    const itemsToInsert = items.map((item: any) => ({
-      order_id: orderId,
-      product_type: item.product_type,
-      design: item.design,
-      size: item.size || null,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      subtotal: item.subtotal
-    }));
+      // Prepare items
+      const itemsToInsert = items.map((item: any) => ({
+        order_id: orderId,
+        product_type: item.product_type,
+        design: item.design,
+        size: item.size || null,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        subtotal: item.subtotal
+      }));
 
-    // Insert Items
-    const { error: itemsError } = await supabase
-      .from('centenario_order_items')
-      .insert(itemsToInsert);
+      // Insert Items
+      const { error: itemsError } = await supabase
+        .from('centenario_order_items')
+        .insert(itemsToInsert);
 
-    if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error("Supabase Items Error:", itemsError);
+        throw new Error(itemsError.message || 'Error al guardar los artículos');
+      }
+    } catch (error: any) {
+      console.error("Full error object:", error);
+      throw error;
+    }
   };
 
   return (
