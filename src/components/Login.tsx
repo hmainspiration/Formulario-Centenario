@@ -29,31 +29,31 @@ export default function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 w-full max-w-md">
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-lg border border-gray-100 dark:border-gray-700 w-full max-w-md transition-colors">
         <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+          <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
             <Lock className="w-8 h-8" />
           </div>
         </div>
         
-        <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">Acceso Administrativo</h2>
-        <p className="text-center text-gray-500 mb-8">Ingresa la contraseña para ver los reportes</p>
+        <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-2">Acceso Administrativo</h2>
+        <p className="text-center text-gray-500 dark:text-gray-400 mb-8">Ingresa la contraseña para ver los reportes</p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contraseña</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              className="w-full px-4 py-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all dark:text-white"
               placeholder="••••••••"
               required
             />
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm font-medium text-center bg-red-50 py-2 rounded-lg">
+            <p className="text-red-500 dark:text-red-400 text-sm font-medium text-center bg-red-50 dark:bg-red-900/20 py-2 rounded-lg border border-red-100 dark:border-red-800/30">
               {error}
             </p>
           )}
@@ -61,7 +61,7 @@ export default function Login({ onLogin }: LoginProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-6 py-3.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-lg"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 dark:disabled:bg-indigo-800 text-white px-6 py-3.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-lg"
           >
             {loading ? (
               'Verificando...'
