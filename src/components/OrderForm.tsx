@@ -48,9 +48,12 @@ export default function OrderForm({ onSave }: OrderFormProps) {
       if (sizeObj) unitPrice = sizeObj.price;
     }
 
+    const designObj = selectedProduct.designs.find(d => d.label === selectedDesign);
+
     const newItem: OrderItem = {
       product_type: selectedProduct.name,
       design: selectedDesign,
+      design_code: designObj?.code,
       size: selectedSize || undefined,
       quantity,
       unit_price: unitPrice,
@@ -165,16 +168,16 @@ export default function OrderForm({ onSave }: OrderFormProps) {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {selectedProduct.designs.map(design => (
                 <button
-                  key={design}
-                  onClick={() => setSelectedDesign(design)}
+                  key={design.label}
+                  onClick={() => setSelectedDesign(design.label)}
                   className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                    selectedDesign === design 
+                    selectedDesign === design.label 
                       ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' 
                       : 'border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 text-gray-700 dark:text-gray-300'
                   }`}
                 >
-                  {selectedDesign === design && <Check className="w-4 h-4" />}
-                  {design}
+                  {selectedDesign === design.label && <Check className="w-4 h-4" />}
+                  {design.label}
                 </button>
               ))}
             </div>

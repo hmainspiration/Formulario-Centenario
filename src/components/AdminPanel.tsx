@@ -43,15 +43,20 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
 
       const { data: allItems, error: itemsError } = await supabase
         .from('centenario_order_items')
-        .select('product_type, size, quantity');
+        .select('product_type, design, size, quantity');
       
       if (itemsError) throw itemsError;
 
       const summaryMap = new Map();
       allItems?.forEach(item => {
-        const key = `${item.product_type}|${item.size || ''}`;
+        const key = `${item.product_type}|${item.design || ''}|${item.size || ''}`;
         if (!summaryMap.has(key)) {
-          summaryMap.set(key, { product_type: item.product_type, size: item.size, total_qty: 0 });
+          summaryMap.set(key, { 
+            product_type: item.product_type, 
+            design: item.design,
+            size: item.size, 
+            total_qty: 0 
+          });
         }
         summaryMap.get(key).total_qty += item.quantity;
       });
@@ -175,14 +180,16 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-700">
                     <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Producto</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Diseño</th>
                     <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Talla</th>
                     <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-right">Cantidad Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                  {reports.itemsSummary.map((item: any, i: number) => (
+                   {reports.itemsSummary.map((item: any, i: number) => (
                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                       <td className="py-3 text-gray-900 dark:text-gray-100 font-medium">{item.product_type}</td>
+                      <td className="py-3 text-gray-600 dark:text-gray-300 text-sm">{item.design || '-'}</td>
                       <td className="py-3 text-gray-500 dark:text-gray-400">{item.size || '-'}</td>
                       <td className="py-3 text-gray-900 dark:text-gray-100 text-right font-semibold">{item.total_qty}</td>
                     </tr>
@@ -225,7 +232,7 @@ export default function AdminPanel({ token, onLogout }: AdminPanelProps) {
                     <td className="py-4 px-6 text-sm text-gray-500 dark:text-gray-400">
                       {order.items.map((item, i) => (
                         <div key={i}>
-                          {item.quantity}x {item.product_type} {item.size ? `(${item.size})` : ''}
+                          {item.quantity}x {item.product_type} - {item.design} {item.design_code ? `[${item.design_code}]` : ''} {item.size ? `(${item.size})` : ''}
                         </div>
                       ))}
                     </td>
